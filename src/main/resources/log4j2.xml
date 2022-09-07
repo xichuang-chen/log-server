@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--根节点configuration有两个属性:status和monitorinterval,有两个子节点:appenders和loggers(可以定义多个Appender和logger)-->
+<!--status用来指定log4j本身的打印日志的级别(OFF:最高等级的，用于关闭所有日志记录,这里最好不设置); monitorinterval：Log4j能够自动检测修改配置 文件和重新配置本身，设置间隔秒数 -->
+<!--日志级别以及优先级排序: OFF > FATAL > ERROR > WARN > INFO > DEBUG > TRACE > ALL -->
+<configuration monitorInterval="30">
+    <Properties>
+        <!--定义变量-->
+        <property name="rolling_pattern">%d{yyyy-MM-dd}-%i.gz</property>
+        <property name="every_file_size">10MB</property><!-- 日志切割的最小单位 -->
+        <property name="log_pattern">%d{yyyy-MM-dd HH:mm:ss z} %-5level %class{36} %L %M - %msg%xEx%n</property>
+    </Properties>
+
+    <!-- appenders节点，常见的有三种子节点:Console、RollingFile、File -->
+    <appenders>
+        <!-- 控制台输出-->
+        <!-- Console节点用来定义输出到控制台的Appender(输出源)
+                name:指定Appender的名字;
+                target:SYSTEM_OUT 或 SYSTEM_ERR,一般只设置默认:SYSTEM_OUT
+                PatternLayout:输出格式，不设置默认为:%m%n   -->
+        <Console name="CONSOLE" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] (%l)- %m%n" />
+        </Console>
+
+        <!-- 入文件-->
+        <!-- RollingFile节点用来定义超过指定大小自动删除旧的创建新的的Appender
+　　　　　　　　        name:指定Appender的名字
+　　　　　　　　        fileName:指定输出日志的目的文件带全路径的文件名
+　　　　　　　　        filePattern:指定新建日志文件的名称格式
+　　　　　　　　        PatternLayout:输出格式，不设置默认为:%m%n
+　　　　　　　     Policies:指定滚动日志的策略，就是什么时候进行新建日志文件输出日志
+　　　　　　　            TimeBasedTriggeringPolicy:Policies子节点，基于时间的滚动策略，interval属性用来指定多久滚动一次，默认是1 hour。modulate=true用来调整时间：比如现在是早上3am，interval是4，那么第一次滚动是在4am，接着是8am，12am...而不是7am
+　　　　　　　　        SizeBasedTriggeringPolicy:Policies子节点，基于指定文件大小的滚动策略，size属性用来定义每个日志文件的大小
+　　　　　　　　        DefaultRolloverStrategy:用来指定同一个文件夹下最多有几个日志文件时开始删除最旧的，创建新的(通过max属性)。 -->
+
+        <RollingFile name="shortMessageRollingFile" fileName="/opt/nfs_data/logs/shortMessageRollingFile.log"
+                     append="true"
+                     filePattern="/opt/nfs_data/logs/shortMessageRollingFile.log${rolling_pattern}">
+            <PatternLayout pattern="${log_pattern}" charset="UTF-8"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="${every_file_size}"/>
+                <!-- 每天凌晨0点  匹配的所有文件在30天或更长时间内将在翻滚时间删除。-->
+                <CronTriggeringPolicy schedule="0 0 0 * * ?"/>
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${basePath}" maxDepth="2">
+                    <IfFileName glob="*.gz"/>
+                    <IfLastModified age="30d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </appenders>
+
+
+    <!-- loggers节点，常见的有两种:root和logger.
+　　　　　　　  root节点用来指定项目的根日志，如果没有单独指定logger，那么就会默认使用该root日志输出
+　　　　　　　　　level:日志输出级别，共有8个级别，按照从低到高为：All < Trace < Debug < Info < Warn < Error < Fatal < OFF.
+　　　　　　　　　appender-ref：root的子节点，用来指定该日志输出到哪个Appender.
+　　　　　　　  logger节点用来单独指定日志的形式，比如要为指定包下的class指定不同的日志级别等。
+　　　　　　　　　level:日志输出级别，共有8个级别，按照从低到高为：All < Trace < Debug < Info < Warn < Error < Fatal < OFF.
+　　　　　　　　　name:用来指定该logger所适用的类或者类所在的包全路径,继承自root节点.
+　　　　　　　　　appender-ref：logger的子节点，用来指定该日志输出到哪个Appender,如果没有指定，就会默认继承自root.如果指定了，那么会在指定的这个Appender和root的Appender中都会输出，此时我们可以设置logger的additivity="false"只在自定义的Appender中进行输出。 -->
+    <loggers>
+        <!-- 控制台日志 -->
+        <root level="Trace">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <Logger name="shortMessageLogger" additivity="false" level="INFO">
+            <appender-ref ref="shortMessageRollingFile" level="INFO"/>
+        </Logger>
+    </loggers>
+</configuration>
